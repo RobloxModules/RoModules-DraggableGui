@@ -1,10 +1,14 @@
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+if RunService:IsServer() then return end
 
 local mod = {}
 
 function mod.MakeGuiDraggable(draggedGui: GuiObject, dragInitiator: GuiObject)
-	if RunService:IsServer() then return end
+	if typeof(dragInitiator) ~= "Instance" or not dragInitiator:IsA("GuiObject") then
+		warn("Passed DragInitiator is not a GuiObject! Falling back to DraggedGui")
+		dragInitiator = draggedGui
+	end
 	
 	local isDragging = false
 	local dragStart = nil
@@ -18,34 +22,30 @@ function mod.MakeGuiDraggable(draggedGui: GuiObject, dragInitiator: GuiObject)
 		)
 	end
 	
-	local initiateDragEnv
-	initiateDragEnv = dragInitiator.InputBegan:Connect(function(input)
+	local initiateDragEnv = dragInitiator.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			
 			isDragging = true
 			dragStart = input.Position
 			startPos = draggedGui.Position
-			
-			local changedEnv
-			changedEnv = input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					isDragging = false
-					changedEnv:Disconnect()
-				end
-			end)
 		end
 	end)
 	
-	local inputChangedEnv
-	inputChangedEnv = UserInputService.InputChanged:Connect(function(input)
+	local inputChangedEnv = UserInputService.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
 			Update(input)
+		end
+	end)
+	
+	local inputEndedEnv = UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 and isDragging then
+			isDragging = false
 		end
 	end)
 	
 	dragInitiator.Destroying:Connect(function()
 		initiateDragEnv:Disconnect()
 		inputChangedEnv:Disconnect()
+		inputEndedEnv:Disconnect()
 	end)
 end
 
